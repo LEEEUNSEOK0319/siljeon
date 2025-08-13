@@ -29,13 +29,37 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
       return;
     }
     
-    setIsLoading(true);
-    
-    // 회원가입 시뮬레이션
-    setTimeout(() => {
+    try {
+      const res = await fetch("http://localhost:8090/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          name : formData.name, 
+          email : formData.email,
+          password : formData.password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 409){
+          alert(data.message);
+        } else {
+          alert(data.message);
+        }
+        return;
+      }
+      if (data.message === "success") {
+        onSignup();
+      }
+    } catch (error) {
+      console.error(error);
+      alert("이메일 또는 비밀번호를 확인하세요.");
+    } finally{
       setIsLoading(false);
-      onSignup();
-    }, 1500);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

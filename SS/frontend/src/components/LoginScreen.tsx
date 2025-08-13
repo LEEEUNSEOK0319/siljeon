@@ -23,11 +23,30 @@ export function LoginScreen({
     e.preventDefault();
     setIsLoading(true);
 
-    // 로그인 시뮬레이션
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const res = await fetch("http://localhost:8090/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    setIsLoading(false);
-    onLogin();
+      if (!res.ok) {
+        console.log(res.ok);
+        throw new Error("로그인 실패");
+      }
+
+      const data = await res.json();
+      console.log("로그인 성공:", data);
+
+      onLogin();
+    } catch (error) {
+      console.error(error);
+      alert("이메일 또는 비밀번호를 확인하세요.");
+    } finally{
+      setIsLoading(false);
+    }
   };
 
   return (
