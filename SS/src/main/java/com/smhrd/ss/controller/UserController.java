@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,14 +25,23 @@ public class UserController {
 	private UserService userService;
 	
 	@PostMapping("/login")
-	public ResponseEntity<List<Object>> login(@RequestBody UserEntity request, HttpSession session) {
+	public ResponseEntity<List<Object>> login(@RequestBody Map<String, Object> request, HttpSession session) {
+		String email = (String) request.get("email");
+		String password = (String) request.get("password");
+		Boolean rememberMe = request.get("rememberMe") != null && (Boolean) request.get("rememberMe");
+		
 		UserEntity entity = new UserEntity();
-		entity.setEmail(request.getEmail());
-		entity.setPassword(request.getPassword());
+		entity.setEmail(email);
+		entity.setPassword(password);
 		
 		UserEntity user = userService.login(entity);
 		if (user != null) {
 			session.setAttribute("user", user);
+			
+			if (rememberMe) {
+				session.setMaxInactiveInterval(60 * 60 * 24);
+			}
+			
 			return ResponseEntity.ok(Collections.singletonList(user));
 		} else {
 			return ResponseEntity.status(
@@ -64,5 +74,24 @@ public class UserController {
 					.body(Collections.singletonMap("message", "이메일 또는 비밀번호를 확인하세요."));
 		}
 	}
+	
+//	로그인 유지
+	@GetMapping("/me")
+	public ResponseEntity<List<UserEntity>> getCurrentUser(HttpSession session) {
+		UserEntity user = (UserEntity) session.getAttribute("user");
+		if (user != null) {
+			return ResponseEntity.ok(Collections.singletonList(user));
+		} else {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(Collections.emptyList());
+		}
+	}
+	
+	// 로그아웃
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(HttpSession session) {
+        session.invalidate();
+        return ResponseEntity.ok(Collections.singletonMap("message", "로그아웃 성공"));
+    }
 	
 }
