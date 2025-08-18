@@ -22,12 +22,32 @@ import MobileHomeScreen from './components/mobile/MobileHomeScreen';
 import MobileChatInterface from './components/mobile/MobileChatInterface';
 import MobileSettingsScreen from './components/mobile/MobileSettingsScreen';
 import MobileBottomNav from './components/mobile/MobileBottomNav';
+import { useEffect } from 'react';
 
 type Screen = 'login' | 'signup' | 'onboarding' | 'home' | 'chat' | 'settings';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkLogin = async () => {
+      try {
+        const res = await fetch("http://localhost:8090/api/auth/me", {
+          credentials: "include" // 세션 쿠키 포함
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setScreen('home'); // 바로 홈으로 이동
+          }
+        }
+      } catch (e) {
+        console.error("세션 확인 실패", e);
+      }
+    };
+    checkLogin();
+  }, []);
 
   // ✅ 변경된 useFiles 반환 형태에 맞게 구조 분해
   const {
@@ -51,6 +71,7 @@ export default function App() {
 
   const { isMobile } = useMobile();
   const go = (s: Screen) => setScreen(s);
+
 
   // ===== 데스크톱 =====
   if (!isMobile) {

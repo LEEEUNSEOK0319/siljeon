@@ -19,7 +19,7 @@ export function LoginScreen({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -31,6 +31,7 @@ export function LoginScreen({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password, rememberMe }),
+        credentials : "include"
       });
 
       if (!res.ok) {
@@ -167,6 +168,7 @@ export function LoginScreen({
               <Button
                 type="button"
                 variant="outline"
+                onClick={() => window.location.href = "http://localhost:8090/api/auth/google"}
                 className="glass border-border bg-card h-11 font-medium hover:bg-accent transition-all text-foreground"
               >
                 <svg

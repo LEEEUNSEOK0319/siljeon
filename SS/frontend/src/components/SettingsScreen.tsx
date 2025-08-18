@@ -8,11 +8,11 @@ import { ApiKeyModal } from './ApiKeyModal';
 import { ApiConnectionStatus } from './ApiConnectionStatus';
 import { HelpModal } from './HelpModal';
 import type { ApiKey } from '../types';
-import { 
-  ArrowLeft, 
-  User, 
-  Shield, 
-  Palette, 
+import {
+  ArrowLeft,
+  User,
+  Shield,
+  Palette,
   HelpCircle,
   LogOut,
   Settings as SettingsIcon,
@@ -47,12 +47,12 @@ interface SettingsScreenProps {
   onToggleDarkMode: (value: boolean) => void;
 }
 
-export function SettingsScreen({ 
-  onBack, 
-  onLogout, 
-  apiKeys, 
-  onUpdateApiKeys, 
-  onDisconnectApiKey, 
+export function SettingsScreen({
+  onBack,
+  onLogout,
+  apiKeys,
+  onUpdateApiKeys,
+  onDisconnectApiKey,
   onConnectApiKey,
   isDarkMode,
   onToggleDarkMode
@@ -77,6 +77,24 @@ export function SettingsScreen({
     { id: 'about', label: '정보', icon: <HelpCircle className="w-4 h-4" /> }
   ];
 
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("http://localhost:8090/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("로그아웃 실패");
+      }
+
+      onLogout();
+    } catch (e) {
+      console.error("로그아웃 중 오류 발생", e);
+      alert("로그아웃 실패. 다시 시도해주세요.");
+    }
+  };
+
   const handleSaveProfile = () => {
     setIsEditing(false);
     // 프로필 저장 로직
@@ -95,8 +113,8 @@ export function SettingsScreen({
   const handleSaveApiKey = (key: string, name: string) => {
     if (editingApiKey) {
       // 기존 키 수정
-      const updatedApiKeys = apiKeys.map(item => 
-        item.id === editingApiKey.id 
+      const updatedApiKeys = apiKeys.map(item =>
+        item.id === editingApiKey.id
           ? { ...item, name, key, maskedKey: key.substring(0, 3) + '***************' + key.slice(-4) }
           : item
       );
@@ -167,11 +185,10 @@ export function SettingsScreen({
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all ${
-                      activeTab === tab.id
-                        ? 'bg-gradient-primary text-white shadow-lg'
-                        : 'text-foreground hover:bg-accent'
-                    }`}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all ${activeTab === tab.id
+                      ? 'bg-gradient-primary text-white shadow-lg'
+                      : 'text-foreground hover:bg-accent'
+                      }`}
                   >
                     {tab.icon}
                     <span className="font-medium">{tab.label}</span>
@@ -191,11 +208,10 @@ export function SettingsScreen({
                     <h2 className="text-xl font-semibold text-foreground">프로필 정보</h2>
                     <Button
                       onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
-                      className={`${
-                        isEditing 
-                          ? 'bg-gradient-primary btn-glow text-white' 
-                          : 'glass hover:bg-accent text-foreground'
-                      } font-medium rounded-xl h-10 px-4 border-0`}
+                      className={`${isEditing
+                        ? 'bg-gradient-primary btn-glow text-white'
+                        : 'glass hover:bg-accent text-foreground'
+                        } font-medium rounded-xl h-10 px-4 border-0`}
                     >
                       {isEditing ? (
                         <>
@@ -434,17 +450,16 @@ export function SettingsScreen({
                                   <span>마지막 사용: {apiKey.lastUsed}</span>
                                 </div>
                               </div>
-                              
+
                               <div className="flex items-center space-x-2 ml-4">
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => apiKey.isConnected ? onDisconnectApiKey(apiKey.id) : onConnectApiKey(apiKey.id)}
-                                  className={`w-8 h-8 p-0 rounded-lg ${
-                                    apiKey.isConnected 
-                                      ? 'text-red-500 hover:text-red-700 hover:bg-red-100/20'
-                                      : 'text-green-500 hover:text-green-700 hover:bg-green-100/20'
-                                  }`}
+                                  className={`w-8 h-8 p-0 rounded-lg ${apiKey.isConnected
+                                    ? 'text-red-500 hover:text-red-700 hover:bg-red-100/20'
+                                    : 'text-green-500 hover:text-green-700 hover:bg-green-100/20'
+                                    }`}
                                 >
                                   {apiKey.isConnected ? <Unplug className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
                                 </Button>
@@ -560,7 +575,7 @@ export function SettingsScreen({
                             <p className="text-sm text-muted-foreground">사용법과 문제 해결 방법을 확인하세요</p>
                           </div>
                         </div>
-                        <Button 
+                        <Button
                           onClick={() => setShowHelpModal(true)}
                           className="glass hover:bg-accent text-foreground font-medium rounded-xl border-0"
                         >
@@ -595,10 +610,10 @@ export function SettingsScreen({
                             <p className="text-sm text-red-600">계정에서 로그아웃합니다</p>
                           </div>
                         </div>
-                        <Button 
-                          onClick={onLogout}
+                        <Button
+                          onClick={handleLogout}
                           variant="destructive"
-                          className="font-medium rounded-xl px-4 h-10 border-0"
+                          className="font-medium rounded-xlMy Project 34634 px-4 h-10 border-0"
                         >
                           로그아웃
                         </Button>
