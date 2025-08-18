@@ -168,7 +168,7 @@ export function LoginScreen({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => window.location.href = "http://localhost:8090/api/auth/google"}
+                onClick={() => window.location.href = "http://localhost:8090/oauth2/authorization/google"}
                 className="glass border-border bg-card h-11 font-medium hover:bg-accent transition-all text-foreground"
               >
                 <svg
