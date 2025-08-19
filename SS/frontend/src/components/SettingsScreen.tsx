@@ -42,8 +42,6 @@ interface SettingsScreenProps {
   onLogout: () => void;
   apiKeys: ApiKey[];
   onUpdateApiKeys: (newApiKeys: ApiKey[]) => void;
-  onDisconnectApiKey: (apiKeyId: string) => void;
-  onConnectApiKey: (apiKeyId: string) => void;
   isDarkMode: boolean;
   onToggleDarkMode: (value: boolean) => void;
 }
@@ -52,8 +50,6 @@ export function SettingsScreen({
   onBack,
   onLogout,
   onUpdateApiKeys,
-  onDisconnectApiKey,
-  onConnectApiKey,
   isDarkMode,
   onToggleDarkMode
 }: SettingsScreenProps) {
@@ -74,7 +70,7 @@ export function SettingsScreen({
     apiIdx: number;
     apiTitle: string;
     apiURL: string;
-    created?: string;
+    createdDate?: string;
     lastUsed?: string;
     isConnected?: boolean;
   }
@@ -180,22 +176,69 @@ export function SettingsScreen({
     setShowApiKeyModal(true);
   };
 
-  const handleEditApiKey = (apiKey: typeof apiKeys[0]) => {
+  const handleEditApiKey = (api: UserApi) => {
+    setEditingApiKey(api);
     setShowApiKeyModal(true);
   };
 
-  const handleSaveApiKey = async (apiURL: string, apiTitle: string) => {
-    // 이미 백엔드 저장 완료 상태라면, 새로 불러오기
-    await fetchUserApis();
+  const handleSaveApiKey = async (newApi: UserApi) => {
+    setApiKeys((prev) => [...prev, newApi]);
   };
 
-  const handleDeleteApiKey = (id: string) => {
-    onUpdateApiKeys(apiKeys.filter(key => key.id !== id));
+  const handleDeleteApiKey = async (apiURL: string) => {
+    if (!confirm('정말 이 API 키를 삭제하시겠습니까?')) return;
+
+    try {
+      const res = await fetch(`http://localhost:8090/api/auth/deleteApi?apiURL=${encodeURIComponent(apiURL)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        // 프론트 상태에서 삭제
+        setApiKeys((prev) => prev.filter((api) => api.apiURL !== apiURL));
+        alert(result.message || 'API 키가 삭제되었습니다.');
+      } else {
+        alert(result.message || 'API 키 삭제 실패');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('API 키 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const handleCopyApiKey = (key: string) => {
     navigator.clipboard.writeText(key);
     // 토스트 알림을 추가할 수 있음
+  };
+
+  const onConnectApiKey = async (apiURL: string) => {
+    try {
+      const res = await fetch(`http://localhost:8090/api/dooray/drive?apiToken=${apiURL}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: apiURL })
+      });
+
+      if (!res.ok) throw new Error('Dooray API 연결 실패');
+
+      setApiKeys(prev =>
+        prev.map(api => api.apiURL === apiURL ? { ...api, isConnected: true } : api)
+      );
+
+      alert('연결 성공!');
+    } catch (err) {
+      console.error(err);
+      alert('연결 실패!');
+    }
+  };
+
+  const onDisconnectApiKey = (apiURL: string) => {
+    setApiKeys(prev =>
+      prev.map(api => api.apiURL === apiURL ? { ...api, isConnected: false } : api)
+    );
   };
 
   return (
@@ -366,7 +409,7 @@ export function SettingsScreen({
                     <div className="space-y-3">
                       {apiKeys.length > 0 ? (
                         apiKeys.slice(0, 2).map(key => (
-                          <div key={key.id} className="flex items-center justify-between p-3 bg-accent rounded-lg">
+                          <div key={key.apiIdx} className="flex items-center justify-between p-3 bg-accent rounded-lg">
                             <div className="flex items-center space-x-3">
                               <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
                                 <Key className="w-4 h-4 text-white" />
@@ -480,7 +523,7 @@ export function SettingsScreen({
 
                       <div className="space-y-3">
                         {apiKeys.map((api) => (
-                          <div key={api.apiIdx} className="glass p-4 rounded-xl border border-border card-hover">
+                          <div key={api.apiURL} className="glass p-4 rounded-xl border border-border card-hover">
                             <div className="flex items-center justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-3 mb-2">
@@ -489,7 +532,7 @@ export function SettingsScreen({
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="font-medium text-foreground">{api.apiTitle}</p>
-                                    <p className="text-sm text-muted-foreground font-mono">{api.apiURL ? `${api.apiURL.slice(0, 3)}${'*'.repeat(api.apiURL.length -3)}` : ''}</p>
+                                    <p className="text-sm text-muted-foreground font-mono">{api.apiURL ? `${api.apiURL.slice(0, 3)}${'*'.repeat(api.apiURL.length - 3)}` : ''}</p>
                                   </div>
                                   <div className="flex items-center space-x-2">
                                     <div className={`w-2 h-2 rounded-full ${api.isConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
@@ -499,7 +542,7 @@ export function SettingsScreen({
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                                  <span>생성: {api.created}</span>
+                                  <span>생성: {api.createdDate ? new Date(api.createdDate).toLocaleString() : '-'}</span>
                                   <span>마지막 사용: {api.lastUsed}</span>
                                 </div>
                               </div>
@@ -508,7 +551,7 @@ export function SettingsScreen({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => api.isConnected ? onDisconnectApiKey(api.id) : onConnectApiKey(apiKey.id)}
+                                  onClick={() => api.isConnected ? onDisconnectApiKey(api.apiURL) : onConnectApiKey(api.apiURL)}
                                   className={`w-8 h-8 p-0 rounded-lg ${api.isConnected
                                     ? 'text-red-500 hover:text-red-700 hover:bg-red-100/20'
                                     : 'text-green-500 hover:text-green-700 hover:bg-green-100/20'
@@ -535,7 +578,7 @@ export function SettingsScreen({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteApiKey(apiKey.id)}
+                                  onClick={() => handleDeleteApiKey(api.apiURL)}
                                   className="w-8 h-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-100/20 rounded-lg"
                                 >
                                   <Trash2 className="w-4 h-4" />

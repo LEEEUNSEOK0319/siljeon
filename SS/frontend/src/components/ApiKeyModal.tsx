@@ -41,8 +41,17 @@ export function ApiKeyModal({ isOpen, onClose, onSave, editingKey }: ApiKeyModal
 
       if (res.ok) {
         setValidationStatus('valid');
+
+        const newApi = {
+          apiTitle: keyName,
+          apiURL: apiKey,
+          createdDate: result.createdDate,
+          lastUsed: null,
+          isConnected: false
+        };
+
         setTimeout(() => {
-          onSave(apiKey, keyName);
+          onSave(newApi);
           handleClose();
           alert(result.message || 'API가 저장되었습니다.');
         }, 500);

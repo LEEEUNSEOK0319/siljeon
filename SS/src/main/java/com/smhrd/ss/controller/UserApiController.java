@@ -7,12 +7,15 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.nimbusds.oauth2.sdk.Request;
 import com.smhrd.ss.entity.UserApiEntity;
 import com.smhrd.ss.entity.UserEntity;
 import com.smhrd.ss.service.UserApiService;
@@ -56,9 +59,21 @@ public class UserApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Collections.singletonMap("message", "로그인이 필요합니다."));
         }
-        System.out.println(sessionUser.getUserIdx());
         List<UserApiEntity> apis = userApiService.getApisByUser(sessionUser.getUserIdx());
-        System.out.println(apis);
         return ResponseEntity.ok(apis);
+    }
+    
+    @DeleteMapping("/deleteApi")
+    public Map<String, String> deleteApi(@RequestParam String apiURL, HttpSession session) {
+        UserEntity user = (UserEntity) session.getAttribute("user");
+        if (user == null) {
+        	return Map.of("message", "로그인이 필요합니다.");
+        }
+        boolean deleted = userApiService.delete(apiURL, user.getUserIdx());
+        if (deleted) {
+        	return Map.of("message", "API 키가 삭제되었습니다.");
+        } else {
+        	return Map.of("message", "API 키를 찾을 수 없습니다.");
+        }
     }
 }

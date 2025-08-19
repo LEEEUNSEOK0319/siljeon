@@ -1,5 +1,7 @@
 package com.smhrd.ss.entity;
 
+import java.sql.Timestamp;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -29,4 +31,7 @@ public class UserApiEntity {
 
     @Column(name = "apiURL")
     private String apiURL;
+    
+    @Column(name = "createdDate")
+    private Timestamp createdDate;
 }
