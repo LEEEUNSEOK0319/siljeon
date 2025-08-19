@@ -8,6 +8,7 @@ import { ApiKeyModal } from './ApiKeyModal';
 import { ApiConnectionStatus } from './ApiConnectionStatus';
 import { HelpModal } from './HelpModal';
 import type { ApiKey } from '../types';
+import { useEffect } from 'react';
 import {
   ArrowLeft,
   User,
@@ -59,11 +60,11 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'security' | 'about'>('profile');
   const [profileData, setProfileData] = useState({
-    name: '김사용자',
-    email: 'user@company.com',
-    phone: '+82 10-1234-5678',
-    department: '마케팅팀',
-    position: '과장'
+    name: '-',
+    email: '-',
+    phone: '-',
+    depart: '-',
+    level: '-'
   });
   const [isEditing, setIsEditing] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
@@ -95,9 +96,52 @@ export function SettingsScreen({
     }
   };
 
-  const handleSaveProfile = () => {
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('http://localhost:8090/api/auth/me', {
+          method: 'GET',
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProfileData({
+            name: data.name,
+            email: data.email,
+            phone: data.phone || '',
+            depart: data.depart || '',
+            level: data.level || ''
+          });
+        }
+      } catch (err) {
+        console.error('유저 정보 불러오기 실패', err);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  const handleSaveProfile = async () => {
     setIsEditing(false);
-    // 프로필 저장 로직
+    try {
+      const res = await fetch('http://localhost:8090/api/auth/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type' : 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(profileData),
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        alert(result.message || '프로필이 수정되었습니다.');
+      } else {
+        alert(result.message || '수정 실패');
+      }
+    } catch (err) {
+      console.error('프로필 수정 오류', err);
+    }
   };
 
   const handleAddApiKey = () => {
@@ -244,7 +288,7 @@ export function SettingsScreen({
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">{profileData.name}</h3>
-                      <p className="text-muted-foreground">{profileData.department} • {profileData.position}</p>
+                      <p className="text-muted-foreground">{profileData.depart} • {profileData.level}</p>
                     </div>
                   </div>
 
@@ -263,8 +307,8 @@ export function SettingsScreen({
                     <div className="space-y-2">
                       <Label className="text-foreground">부서</Label>
                       <Input
-                        value={profileData.department}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, department: e.target.value }))}
+                        value={profileData.depart}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, depart: e.target.value }))}
                         disabled={!isEditing}
                         className="glass border-border bg-input h-12"
                       />
@@ -299,8 +343,8 @@ export function SettingsScreen({
                     <div className="space-y-2 md:col-span-2">
                       <Label className="text-foreground">직급</Label>
                       <Input
-                        value={profileData.position}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, position: e.target.value }))}
+                        value={profileData.level}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, level: e.target.value }))}
                         disabled={!isEditing}
                         className="glass border-border bg-input h-12"
                       />

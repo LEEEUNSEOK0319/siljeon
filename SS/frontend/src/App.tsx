@@ -34,13 +34,11 @@ export default function App() {
     const checkLogin = async () => {
       try {
         const res = await fetch("http://localhost:8090/api/auth/me", {
+          method: 'GET',
           credentials: "include" // 세션 쿠키 포함
         });
         if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            setScreen('home'); // 바로 홈으로 이동
-          }
+          setScreen('home'); // 바로 홈으로 이동
         }
       } catch (e) {
         console.error("세션 확인 실패", e);

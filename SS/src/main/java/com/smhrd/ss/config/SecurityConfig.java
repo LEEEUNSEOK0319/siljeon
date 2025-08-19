@@ -1,6 +1,5 @@
 package com.smhrd.ss.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,16 +35,17 @@ public class SecurityConfig {
                     String email = (String) oauthUser.getAttributes().get("email");
                     String name = (String) oauthUser.getAttributes().get("name");
 
-                    // DB에 저장 & 세션 저장
-                    UserEntity user = new UserEntity();
-                    user.setEmail(email);
-                    user.setName(name);
-                    user.setOAuth(1);
-
-                    Boolean exists = userService.check(user); // 이메일 중복 체크
-                    if (!exists) {
-                        userService.register(user); // DB 저장
+                    UserEntity user = userService.userInfo(email, 1);
+                    if (user == null) {
+                    	user = new UserEntity();
+                    	user.setEmail(email);
+                    	user.setName(name);
+                    	user.setOAuth(1);
+                    	userService.register(user);
+                    
+                    	user = userService.userInfo(user);
                     }
+                    
 
                     request.getSession().setAttribute("user", user); // 세션에 저장
                     response.sendRedirect("http://localhost:5173/"); // React 홈으로

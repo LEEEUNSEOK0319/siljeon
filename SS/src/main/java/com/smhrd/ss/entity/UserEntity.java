@@ -23,10 +23,15 @@ public class UserEntity {
 	private String name;
 	private String email;
 	private String password;
+	
 	@Column(name = "oAuth")
 	private Integer OAuth;
+	
+	@Column(name = "depart")
 	private String depart;
 	private String phone;
+	
+	@Column(name = "level")
 	private String level;
 	private String joinedAt;
 }
