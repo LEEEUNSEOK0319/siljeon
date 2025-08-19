@@ -26,21 +26,36 @@ export function ApiKeyModal({ isOpen, onClose, onSave, editingKey }: ApiKeyModal
     setIsLoading(true);
     setValidationStatus('validating');
 
-    // API 키 검증 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const res = await fetch('http://localhost:8090/api/auth/addApi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json'},
+        credentials: 'include',
+        body: JSON.stringify({
+          apiTitle: keyName,
+          apiURL: apiKey
+        }),
+      });
+      
+      const result = await res.json();
 
-    // 90% 확률로 성공하도록 시뮬레이션
-    const isValid = Math.random() > 0.1;
-
-    if (isValid) {
-      setValidationStatus('valid');
-      setTimeout(() => {
-        onSave(apiKey, keyName);
-        handleClose();
-      }, 500);
-    } else {
-      setValidationStatus('invalid');
+      if (res.ok) {
+        setValidationStatus('valid');
+        setTimeout(() => {
+          onSave(apiKey, keyName);
+          handleClose();
+          alert(result.message || 'API가 저장되었습니다.');
+        }, 500);
+      } else {
+        setValidationStatus('invalid')
+        setIsLoading(false);
+        alert(result.message || 'API 저장 실패');
+      }
+    } catch (err) {
+      console.error(err);
       setIsLoading(false);
+      setValidationStatus('invalid')
+      alert('API 저장 중 오류가 발생했습니다.');
     }
   };
 

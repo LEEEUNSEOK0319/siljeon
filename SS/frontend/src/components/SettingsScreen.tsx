@@ -51,7 +51,6 @@ interface SettingsScreenProps {
 export function SettingsScreen({
   onBack,
   onLogout,
-  apiKeys,
   onUpdateApiKeys,
   onDisconnectApiKey,
   onConnectApiKey,
@@ -70,6 +69,17 @@ export function SettingsScreen({
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [editingApiKey, setEditingApiKey] = useState<{ id: string; name: string; key: string } | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
+
+  interface UserApi {
+    apiIdx: number;
+    apiTitle: string;
+    apiURL: string;
+    created?: string;
+    lastUsed?: string;
+    isConnected?: boolean;
+  }
+
+  const [apiKeys, setApiKeys] = useState<UserApi[]>([]);
 
   const tabs = [
     { id: 'profile', label: '프로필', icon: <User className="w-4 h-4" /> },
@@ -121,13 +131,34 @@ export function SettingsScreen({
     fetchUser();
   }, []);
 
+  useEffect(() => {
+    fetchUserApis();
+  }, []);
+
+  const fetchUserApis = async () => {
+    try {
+      const res = await fetch('http://localhost:8090/api/auth/myApis', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setApiKeys(data);
+      } else {
+        console.error('API 키 로드 실패', data);
+      }
+    } catch (err) {
+      console.error('API 키 불러오기 오류', err);
+    }
+  };
+
   const handleSaveProfile = async () => {
     setIsEditing(false);
     try {
       const res = await fetch('http://localhost:8090/api/auth/update', {
         method: 'POST',
         headers: {
-          'Content-Type' : 'application/json',
+          'Content-Type': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify(profileData),
@@ -150,34 +181,12 @@ export function SettingsScreen({
   };
 
   const handleEditApiKey = (apiKey: typeof apiKeys[0]) => {
-    setEditingApiKey(apiKey);
     setShowApiKeyModal(true);
   };
 
-  const handleSaveApiKey = (key: string, name: string) => {
-    if (editingApiKey) {
-      // 기존 키 수정
-      const updatedApiKeys = apiKeys.map(item =>
-        item.id === editingApiKey.id
-          ? { ...item, name, key, maskedKey: key.substring(0, 3) + '***************' + key.slice(-4) }
-          : item
-      );
-      onUpdateApiKeys(updatedApiKeys);
-    } else {
-      // 새 키 추가
-      const newKey = {
-        id: Date.now().toString(),
-        name,
-        key,
-        maskedKey: key.substring(0, 3) + '***************' + key.slice(-4),
-        created: new Date().toISOString().split('T')[0],
-        lastUsed: '방금 전',
-        isConnected: true
-      };
-      onUpdateApiKeys([...apiKeys, newKey]);
-    }
-    setShowApiKeyModal(false);
-    setEditingApiKey(null);
+  const handleSaveApiKey = async (apiURL: string, apiTitle: string) => {
+    // 이미 백엔드 저장 완료 상태라면, 새로 불러오기
+    await fetchUserApis();
   };
 
   const handleDeleteApiKey = (id: string) => {
@@ -470,8 +479,8 @@ export function SettingsScreen({
                       </div>
 
                       <div className="space-y-3">
-                        {apiKeys.map((apiKey) => (
-                          <div key={apiKey.id} className="glass p-4 rounded-xl border border-border card-hover">
+                        {apiKeys.map((api) => (
+                          <div key={api.apiIdx} className="glass p-4 rounded-xl border border-border card-hover">
                             <div className="flex items-center justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-3 mb-2">
@@ -479,19 +488,19 @@ export function SettingsScreen({
                                     <Key className="w-4 h-4 text-white" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-foreground">{apiKey.name}</p>
-                                    <p className="text-sm text-muted-foreground font-mono">{apiKey.maskedKey}</p>
+                                    <p className="font-medium text-foreground">{api.apiTitle}</p>
+                                    <p className="text-sm text-muted-foreground font-mono">{api.apiURL ? `${api.apiURL.slice(0, 3)}${'*'.repeat(api.apiURL.length -3)}` : ''}</p>
                                   </div>
                                   <div className="flex items-center space-x-2">
-                                    <div className={`w-2 h-2 rounded-full ${apiKey.isConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                    <span className={`text-xs font-medium ${apiKey.isConnected ? 'text-green-600' : 'text-gray-500'}`}>
-                                      {apiKey.isConnected ? '연결됨' : '연결 안됨'}
+                                    <div className={`w-2 h-2 rounded-full ${api.isConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                    <span className={`text-xs font-medium ${api.isConnected ? 'text-green-600' : 'text-gray-500'}`}>
+                                      {api.isConnected ? '연결됨' : '연결 안됨'}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                                  <span>생성: {apiKey.created}</span>
-                                  <span>마지막 사용: {apiKey.lastUsed}</span>
+                                  <span>생성: {api.created}</span>
+                                  <span>마지막 사용: {api.lastUsed}</span>
                                 </div>
                               </div>
 
@@ -499,18 +508,18 @@ export function SettingsScreen({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => apiKey.isConnected ? onDisconnectApiKey(apiKey.id) : onConnectApiKey(apiKey.id)}
-                                  className={`w-8 h-8 p-0 rounded-lg ${apiKey.isConnected
+                                  onClick={() => api.isConnected ? onDisconnectApiKey(api.id) : onConnectApiKey(apiKey.id)}
+                                  className={`w-8 h-8 p-0 rounded-lg ${api.isConnected
                                     ? 'text-red-500 hover:text-red-700 hover:bg-red-100/20'
                                     : 'text-green-500 hover:text-green-700 hover:bg-green-100/20'
                                     }`}
                                 >
-                                  {apiKey.isConnected ? <Unplug className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
+                                  {api.isConnected ? <Unplug className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleCopyApiKey(apiKey.key)}
+                                  onClick={() => handleCopyApiKey(api.apiURL)}
                                   className="w-8 h-8 p-0 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg"
                                 >
                                   <Copy className="w-4 h-4" />
@@ -518,7 +527,7 @@ export function SettingsScreen({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleEditApiKey(apiKey)}
+                                  onClick={() => handleEditApiKey(api)}
                                   className="w-8 h-8 p-0 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg"
                                 >
                                   <Edit className="w-4 h-4" />
