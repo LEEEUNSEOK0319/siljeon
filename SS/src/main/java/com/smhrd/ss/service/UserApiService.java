@@ -25,7 +25,7 @@ public class UserApiService {
         api.setApiTitle(title);
         api.setApiURL(url);
         api.setCreatedDate(now);
-        api.setIsConnected(false); // ✅ 기본값 설정
+        api.setIsConnected(false);
         return userApiRepository.save(api);
     }
 
@@ -46,7 +46,6 @@ public class UserApiService {
                 })
                 .orElse(false);
     }
-
 
     @Transactional
     public void connectApi(String apiURL, Long userIdx, String apiTitle) {

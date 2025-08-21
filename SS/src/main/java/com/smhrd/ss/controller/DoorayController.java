@@ -41,13 +41,19 @@ public class DoorayController {
 		String apiToken = request.get("apiToken");
 		String apiTitle = request.getOrDefault("apiTitle", "Dooray");
 
-		List<Map<String, Object>> drives = doorayService.getFullDrive(apiToken);
-		if (drives == null) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Dooray API 연결 실패");
-		}
-
+		// 1) 우선 DB에 연결 상태 저장
 		userApiService.connectApi(apiToken, user.getUserIdx(), apiTitle);
-		return ResponseEntity.ok(drives); // 프론트에서 즉시 트리 렌더 가능
+
+		// 2) Dooray 드라이브 로딩 시도 (실패해도 빈 리스트 반환)
+		List<Map<String, Object>> drives = new ArrayList<>();
+		try {
+			List<Map<String, Object>> full = doorayService.getFullDrive(apiToken);
+			if (full != null)
+				drives = full;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return ResponseEntity.ok(drives);
 	}
 
 	@GetMapping("/driveDisconnect")

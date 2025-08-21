@@ -89,6 +89,7 @@ export function useApiKeys(): ApiKeysHookReturn {
     onUpdateApiKeys: handleUpdateApiKeys,
     onDisconnectAllApiKeys: handleDisconnectAllApiKeys,
     onDisconnectApiKey: handleDisconnectApiKey,
-    onConnectApiKey: (apiURL) => handleConnectApiKey(apiURL, '')
+    onConnectApiKey: (apiURL: string, apiTitle: string) => handleConnectApiKey(apiURL, apiTitle)
   };
+
 }

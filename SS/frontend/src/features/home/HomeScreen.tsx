@@ -23,10 +23,9 @@ import { FileSearchModal } from '../files/FileSearchModal';
 import { useFileData } from '../files/hooks/useFileData';
 import { useDriveFolders } from '../files/hooks/useDriveFolders';
 
-const maskToken = (token?: string) => {
-  if (!token) return '';
-  if (token.length <= 8) return '*'.repeat(token.length);
-  return `${token.slice(0, 4)}…${token.slice(-4)}`;
+const maskToken = (t?: string) => {
+  if (!t) return '';
+  return t.length <= 8 ? '*'.repeat(t.length) : `${t.slice(0, 4)}…${t.slice(-4)}`;
 };
 
 interface HomeScreenProps {
@@ -157,7 +156,7 @@ export function HomeScreen({
                         {connectedApiKeys.map((key) => (
                           <div key={key.apiIdx ?? key.apiURL} className="text-xs text-muted-foreground bg-muted rounded-md p-2">
                             <div className="font-medium">{key.apiTitle ?? 'Dooray'}</div>
-                            <div className="text-muted-foreground">{maskToken(key.apiURL)}</div>
+                            <div className="text-muted-foreground font-mono">{maskToken(key.apiURL)}</div>
                           </div>
                         ))}
                       </div>
