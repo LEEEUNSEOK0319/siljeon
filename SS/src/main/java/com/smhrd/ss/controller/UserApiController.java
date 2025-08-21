@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nimbusds.oauth2.sdk.Request;
 import com.smhrd.ss.entity.UserApiEntity;
 import com.smhrd.ss.entity.UserEntity;
 import com.smhrd.ss.service.UserApiService;
@@ -75,5 +74,12 @@ public class UserApiController {
         } else {
         	return Map.of("message", "API 키를 찾을 수 없습니다.");
         }
+    }
+    
+    @PostMapping("/coonectApi")
+    public ResponseEntity<?> connectApi(@RequestParam String apiURL, HttpSession session) {
+    	UserEntity user = (UserEntity) session.getAttribute("user");
+    	userApiService.connectApi(apiURL, user.getUserIdx());
+    	return ResponseEntity.ok("연결 완료");
     }
 }

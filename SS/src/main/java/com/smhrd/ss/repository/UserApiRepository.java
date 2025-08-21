@@ -11,4 +11,6 @@ public interface UserApiRepository extends JpaRepository<UserApiEntity, Long> {
 	List<UserApiEntity> findAllByUserIdx(Long userIdx);
 
 	Optional<UserApiEntity> findByUserIdxAndApiURL(Long userIdx, String apiURL);
+
+	List<UserApiEntity> findAllByUserIdxAndIsConnected(Long userIdx, Boolean bool);
 }

@@ -34,4 +34,7 @@ public class UserApiEntity {
     
     @Column(name = "createdDate")
     private Timestamp createdDate;
+    
+    @Column(name = "isConnected")
+    private Boolean isConnected;
 }

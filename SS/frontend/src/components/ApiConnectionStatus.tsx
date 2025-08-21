@@ -26,7 +26,7 @@ interface ApiConnection {
 
 interface ApiConnectionStatusProps {
   apiKeys: Array<{
-    id: string;
+    id?: string;
     name: string;
     key: string;
   }>;
@@ -39,13 +39,13 @@ export function ApiConnectionStatus({ apiKeys }: ApiConnectionStatusProps) {
   // API 키를 기반으로 연결 상태 초기화
   useEffect(() => {
     const initialConnections: ApiConnection[] = apiKeys.map(key => ({
-      id: key.id,
+      id: key.id || crypto.randomUUID(), // id 없으면 생성
       name: key.name,
       type: 'dooray',
-      status: 'connected', // 기본적으로 연결된 상태로 시작
+      status: 'connected', // 기본 연결 상태
       lastChecked: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
       userInfo: {
-        name: '양진성',  // 첨부된 이미지에서 보인 이름
+        name: '양진성',
         organization: '개발팀',
         avatar: '👤'
       }
@@ -57,24 +57,21 @@ export function ApiConnectionStatus({ apiKeys }: ApiConnectionStatusProps) {
     setConnections(prev => 
       prev.map(conn => 
         conn.id === connectionId 
-          ? { ...conn, status: 'testing' as const }
+          ? { ...conn, status: 'testing' }
           : conn
       )
     );
 
-    // API 연결 테스트 시뮬레이션
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 90% 확률로 성공
     const isSuccess = Math.random() > 0.1;
     const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-    
+
     setConnections(prev => 
       prev.map(conn => 
         conn.id === connectionId 
           ? { 
               ...conn, 
-              status: isSuccess ? 'connected' as const : 'error' as const,
+              status: isSuccess ? 'connected' : 'error',
               lastChecked: now
             }
           : conn
@@ -84,59 +81,40 @@ export function ApiConnectionStatus({ apiKeys }: ApiConnectionStatusProps) {
 
   const testAllConnections = async () => {
     setIsTestingAll(true);
-    
-    // 모든 연결을 순차적으로 테스트
     for (const connection of connections) {
       await testConnection(connection.id);
-      // 각 테스트 사이에 약간의 지연
       await new Promise(resolve => setTimeout(resolve, 500));
     }
-    
     setIsTestingAll(false);
   };
 
   const getStatusColor = (status: ApiConnection['status']) => {
     switch (status) {
-      case 'connected':
-        return 'text-green-600 dark:text-green-400';
-      case 'disconnected':
-        return 'text-gray-500 dark:text-gray-400';
-      case 'error':
-        return 'text-red-600 dark:text-red-400';
-      case 'testing':
-        return 'text-blue-600 dark:text-blue-400';
-      default:
-        return 'text-gray-500 dark:text-gray-400';
+      case 'connected': return 'text-green-600 dark:text-green-400';
+      case 'disconnected': return 'text-gray-500 dark:text-gray-400';
+      case 'error': return 'text-red-600 dark:text-red-400';
+      case 'testing': return 'text-blue-600 dark:text-blue-400';
+      default: return 'text-gray-500 dark:text-gray-400';
     }
   };
 
   const getStatusIcon = (status: ApiConnection['status']) => {
     switch (status) {
-      case 'connected':
-        return <CheckCircle2 className="w-4 h-4" />;
-      case 'disconnected':
-        return <WifiOff className="w-4 h-4" />;
-      case 'error':
-        return <AlertCircle className="w-4 h-4" />;
-      case 'testing':
-        return <RefreshCw className="w-4 h-4 animate-spin" />;
-      default:
-        return <WifiOff className="w-4 h-4" />;
+      case 'connected': return <CheckCircle2 className="w-4 h-4" />;
+      case 'disconnected': return <WifiOff className="w-4 h-4" />;
+      case 'error': return <AlertCircle className="w-4 h-4" />;
+      case 'testing': return <RefreshCw className="w-4 h-4 animate-spin" />;
+      default: return <WifiOff className="w-4 h-4" />;
     }
   };
 
   const getStatusText = (status: ApiConnection['status']) => {
     switch (status) {
-      case 'connected':
-        return 'API 연결됨';
-      case 'disconnected':
-        return 'API 연결 끊김';
-      case 'error':
-        return 'API 연결 오류';
-      case 'testing':
-        return 'API 연결 확인 중...';
-      default:
-        return 'API 상태 불명';
+      case 'connected': return 'API 연결됨';
+      case 'disconnected': return 'API 연결 끊김';
+      case 'error': return 'API 연결 오류';
+      case 'testing': return 'API 연결 확인 중...';
+      default: return 'API 상태 불명';
     }
   };
 
@@ -177,7 +155,7 @@ export function ApiConnectionStatus({ apiKeys }: ApiConnectionStatusProps) {
 
       <div className="space-y-3">
         {connections.map((connection) => (
-          <div key={`${connection.id}-${connection.name}`} className="glass p-5 rounded-xl border border-white/20 card-hover">
+          <div key={connection.id} className="glass p-5 rounded-xl border border-white/20 card-hover">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${

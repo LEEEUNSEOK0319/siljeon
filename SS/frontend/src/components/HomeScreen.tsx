@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { 
-  FileText, 
-  Search, 
-  Settings, 
+import {
+  FileText,
+  Search,
+  Settings,
   MessageSquare,
   User,
   Clock,
@@ -21,7 +21,8 @@ import {
   Upload,
   Unplug,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  ReceiptRussianRuble
 } from 'lucide-react';
 import Sidebar from '../imports/Sidebar-2051-288';
 import type { FileItem, ApiKey } from '../types';
@@ -38,6 +39,31 @@ interface HomeScreenProps {
   apiKeys: ApiKey[];
 }
 
+type FileType = {
+  id: string;
+  name: string;
+  type: string;
+};
+
+type FolderType = {
+  id: string;
+  name: string;
+  subFolders?: FolderType[];
+  files?: FileType[];
+};
+
+type DriveType = {
+  id: string;
+  name: string;
+  folders: FolderType[];
+};
+
+type ApiDrive = {
+  apiTitle: string;
+  apiURL: string;
+  drives: DriveType[];
+};
+
 interface DriveFolder {
   id: string;
   name: string;
@@ -47,9 +73,18 @@ interface DriveFolder {
   subFolders?: DriveFolder[];
 }
 
-export function HomeScreen({ 
-  onNavigateToChat, 
-  onOpenSettings, 
+interface ApiKey {
+  apiIdx: number;
+  apiTitle: string;
+  apiURL: string;
+  createdDate?: string;
+  lastUsed?: string;
+  isConnected?: boolean;
+}
+
+export function HomeScreen({
+  onNavigateToChat,
+  onOpenSettings,
   hasConnectedApiKeys,
   files,
   onToggleFavorite,
@@ -64,94 +99,35 @@ export function HomeScreen({
   const [showFileModal, setShowFileModal] = useState(false);
   const [showApiDropdown, setShowApiDropdown] = useState(false);
   const apiDropdownRef = useRef<HTMLDivElement>(null);
+  const [apis, setApis] = useState<ApiKey[]>([]);
+  const [selectedApi, setSelectedApi] = useState<string>("");
+  const [driveData, setDriveData] = useState<ApiDrive[]>([]);
+  const [driveLoading, setDriveLoading] = useState<boolean>(true);
 
-  // 드라이브 폴더 구조 상태
-  const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([
-    {
-      id: 'reports',
-      name: '보고서',
-      icon: '📊',
-      isExpanded: true,
-      files: files.filter(file => file.path.includes('/reports/')),
-      subFolders: [
-        {
-          id: 'quarterly',
-          name: '분기별 보고서',
-          icon: '📈',
-          isExpanded: false,
-          files: files.filter(file => file.path.includes('/reports/') && file.name.includes('분기'))
-        }
-      ]
-    },
-    {
-      id: 'marketing',
-      name: '마케팅',
-      icon: '🚀',
-      isExpanded: false,
-      files: files.filter(file => file.path.includes('/marketing/')),
-      subFolders: [
-        {
-          id: 'strategy',
-          name: '전략 문서',
-          icon: '📋',
-          isExpanded: false,
-          files: files.filter(file => file.path.includes('/marketing/') && file.name.includes('전략'))
-        }
-      ]
-    },
-    {
-      id: 'projects',
-      name: '프로젝트',
-      icon: '📁',
-      isExpanded: false,
-      files: files.filter(file => file.path.includes('/projects/')),
-    },
-    {
-      id: 'hr',
-      name: '인사관리',
-      icon: '👥',
-      isExpanded: false,
-      files: files.filter(file => file.path.includes('/hr/')),
-    },
-    {
-      id: 'design',
-      name: '디자인',
-      icon: '🎨',
-      isExpanded: false,
-      files: files.filter(file => file.path.includes('/brand/')),
-    },
-    {
-      id: 'templates',
-      name: '템플릿',
-      icon: '📝',
-      isExpanded: false,
-      files: files.filter(file => file.path.includes('/templates/')),
-    },
-    {
-      id: 'analysis',
-      name: '분석',
-      icon: '📈',
-      isExpanded: false,
-      files: files.filter(file => file.path.includes('/analysis/')),
-    },
-    {
-      id: 'products',
-      name: '제품',
-      icon: '🔧',
-      isExpanded: false,
-      files: files.filter(file => file.path.includes('/products/')),
-    }
-  ]);
+  // 드라이브 파일 평탄화
+  const getAllDriveFiles = (drives: ApiDrive[]): FileItem[] => {
+    const result: FileItem[] = [];
+    const traverseFolder = (folder: FolderType) => {
+      if (folder.files) result.push(...folder.files);
+      folder.subFolders?.forEach(traverseFolder);
+    };
+    drives.forEach(api => {
+      api.drives.forEach(drive => {
+        drive.folders.forEach(traverseFolder);
+      });
+    });
+    return result;
+  };
+
+  const allFiles = [...files, ...getAllDriveFiles(driveData)];
 
   // 실제 파일 데이터에서 최근 파일과 즐겨찾기 파일 필터링
-  const recentFiles = files.slice().sort((a, b) => {
+  const recentFiles = allFiles.slice().sort((a, b) => {
     // 실제로는 날짜 비교를 해야 하지만, 여기서는 순서대로 표시
     const timeOrder = ['2시간 전', '5시간 전', '1일 전', '2일 전', '3일 전', '1주 전'];
     return timeOrder.indexOf(a.modified) - timeOrder.indexOf(b.modified);
   });
-
-  const favoriteFiles = files.filter(file => file.isFavorite);
-  const connectedApiKeys = apiKeys.filter(key => key.isConnected);
+  const favoriteFiles = allFiles.filter(file => file.isFavorite);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -167,27 +143,47 @@ export function HomeScreen({
     };
   }, []);
 
-  // 폴더 확장/축소 토글
-  const toggleFolder = (folderId: string, parentId?: string) => {
-    setDriveFolders(prevFolders => 
-      prevFolders.map(folder => {
-        if (folder.id === folderId && !parentId) {
-          return { ...folder, isExpanded: !folder.isExpanded };
+  // API 드롭아웃에 설정에 저장된 API 불러오기
+  useEffect(() => {
+    const apiLoading = async () => {
+      try {
+        const res = await fetch('http://localhost:8090/api/dooray/apiLoading', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error('API 요청 실패');
+        const data = await res.json();
+        setApis(data);
+        if (data.length > 0) {
+          setSelectedApi(data[0].apiKey);
         }
-        if (parentId && folder.id === parentId && folder.subFolders) {
-          return {
-            ...folder,
-            subFolders: folder.subFolders.map(subFolder =>
-              subFolder.id === folderId 
-                ? { ...subFolder, isExpanded: !subFolder.isExpanded }
-                : subFolder
-            )
-          };
-        }
-        return folder;
-      })
-    );
-  };
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    apiLoading();
+  }, []);
+
+  // 드라이브 불러오기
+  useEffect(() => {
+    const driveLoading = async () => {
+      try {
+        const res = await fetch("http://localhost:8090/api/dooray/driveLoading", {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("API 요청 실패");
+        const data = await res.json();
+        console.log(data)
+        setDriveData(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setDriveLoading(false);
+      }
+    };
+    driveLoading();
+  }, []);
 
   // API 연결해제 핸들러
   const handleDisconnectApi = () => {
@@ -228,246 +224,127 @@ export function HomeScreen({
               ×
             </Button>
           </div>
-          
+
           {/* 메인 콘텐츠 영역 - flex-1로 남은 공간 모두 사용 */}
           <div className="flex-1 flex flex-col p-4 overflow-hidden">
-            {/* 3개 탭 네비게이션 - 축소된 여백 */}
+            {/* 3개 탭 네비게이션 */}
             <div className="flex space-x-1 bg-accent rounded-lg p-1 border border-border mb-4">
               <button
                 onClick={() => setActiveTab('recent')}
-                className={`flex-1 flex items-center justify-center space-x-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${
-                  activeTab === 'recent'
-                    ? 'bg-background text-foreground shadow-sm border border-border'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`flex-1 flex items-center justify-center space-x-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${activeTab === 'recent'
+                  ? 'bg-background text-foreground shadow-sm border border-border'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 <Clock className="w-3 h-3" />
                 <span>최근</span>
               </button>
               <button
                 onClick={() => setActiveTab('favorites')}
-                className={`flex-1 flex items-center justify-center space-x-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${
-                  activeTab === 'favorites'
-                    ? 'bg-background text-foreground shadow-sm border border-border'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`flex-1 flex items-center justify-center space-x-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${activeTab === 'favorites'
+                  ? 'bg-background text-foreground shadow-sm border border-border'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 <Star className="w-3 h-3" />
                 <span>즐겨찾기</span>
               </button>
               <button
                 onClick={() => setActiveTab('drive')}
-                className={`flex-1 flex items-center justify-center space-x-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${
-                  activeTab === 'drive'
-                    ? 'bg-background text-foreground shadow-sm border border-border'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`flex-1 flex items-center justify-center space-x-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${activeTab === 'drive'
+                  ? 'bg-background text-foreground shadow-sm border border-border'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 <HardDrive className="w-3 h-3" />
                 <span>드라이브</span>
               </button>
             </div>
 
-            {/* 드라이브 탭 콘텐츠 - 남은 공간 모두 사용 */}
-            {activeTab === 'drive' ? (
+            {/* 드라이브 탭 콘텐츠 */}
+            {activeTab === 'drive' && (
               <div className="flex-1 flex flex-col overflow-hidden">
-                {/* 드라이브 헤더 - 축소된 패딩 */}
-                <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-border shadow-sm mb-3">
-                  <div className="flex items-center space-x-2">
-                    <HardDrive className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium text-foreground">내 드라이브</span>
+                {driveLoading ? (
+                  <div className="text-center text-sm text-muted-foreground p-4">드라이브 로딩 중...</div>
+                ) : driveData.length === 0 ? (
+                  <div className="text-sm text-muted-foreground p-4">
+                    연결된 드라이브가 없습니다.
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-7 h-7 p-0 hover:bg-accent rounded-md"
-                  >
-                    <Upload className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                    {driveData.map((api) => (
+                      <div key={api.apiIdx} className="mb-4">
+                        <h3 className="text-sm font-semibold text-foreground mb-2">{api.apiTitle}</h3>
 
-                {/* 폴더 구조 - 높이 최대화 및 스크롤 */}
-                <div className="flex-1 overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-                  <div className="space-y-1">
-                    {driveFolders.map((folder) => (
-                      <div key={folder.id} className="space-y-1">
-                        {/* 메인 폴더 */}
-                        <div
-                          className="flex items-center space-x-2 p-2 hover:bg-accent rounded-lg cursor-pointer group transition-all"
-                          onClick={() => toggleFolder(folder.id)}
-                        >
-                          <div className="flex items-center space-x-1">
-                            {folder.isExpanded ? (
-                              <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                            )}
-                            {folder.isExpanded ? (
-                              <FolderOpen className="w-4 h-4 text-blue-500" />
-                            ) : (
-                              <Folder className="w-4 h-4 text-blue-500" />
-                            )}
-                          </div>
-                          <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">
-                            {folder.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground ml-auto">
-                            {folder.files.length}
-                          </span>
-                        </div>
-
-                        {/* 확장된 폴더 내용 */}
-                        {folder.isExpanded && (
-                          <div className="ml-6 space-y-1">
-                            {/* 서브폴더 */}
-                            {folder.subFolders?.map((subFolder) => (
-                              <div key={subFolder.id} className="space-y-1">
-                                <div
-                                  className="flex items-center space-x-2 p-2 hover:bg-accent rounded-lg cursor-pointer group transition-all"
-                                  onClick={() => toggleFolder(subFolder.id, folder.id)}
-                                >
-                                  <div className="flex items-center space-x-1">
-                                    {subFolder.isExpanded ? (
-                                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                                    ) : (
-                                      <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                                    )}
-                                    {subFolder.isExpanded ? (
-                                      <FolderOpen className="w-3 h-3 text-blue-400" />
-                                    ) : (
-                                      <Folder className="w-3 h-3 text-blue-400" />
-                                    )}
-                                  </div>
-                                  <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground">
-                                    {subFolder.name}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground ml-auto">
-                                    {subFolder.files.length}
-                                  </span>
-                                </div>
-
-                                {/* 서브폴더 파일들 - 더 많이 표시 */}
-                                {subFolder.isExpanded && (
-                                  <div className="ml-6 space-y-1">
-                                    {subFolder.files.slice(0, 5).map((file) => (
-                                      <div
-                                        key={file.id}
-                                        className="group p-2 rounded-lg bg-background hover:bg-accent transition-all cursor-pointer border border-border overflow-hidden"
-                                        onClick={() => onFileSelect?.(file)}
-                                      >
-                                        <div className="flex items-center space-x-2 gap-1">
-                                          <span className="text-xs flex-shrink-0">{file.icon}</span>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-medium text-foreground truncate">
-                                              {file.name}
-                                            </p>
-                                          </div>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              onToggleFavorite(file.id);
-                                            }}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 p-0 hover:bg-accent flex-shrink-0"
-                                          >
-                                            <Star 
-                                              className={`w-3 h-3 ${
-                                                file.isFavorite 
-                                                  ? 'text-yellow-500 fill-yellow-500' 
-                                                  : 'text-muted-foreground hover:text-yellow-500'
-                                              }`} 
-                                            />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                        {api.drives
+                          .filter((drive) => !['root', 'trash'].includes(drive.name))
+                          .map((drive) => (
+                            <div key={drive.id} className="ml-2 mb-2">
+                              <div className="flex items-center space-x-2 p-2 bg-background rounded-md shadow-sm">
+                                <HardDrive className="w-4 h-4 text-primary" />
+                                <span className="text-sm font-medium">{drive.name}</span>
                               </div>
-                            ))}
 
-                            {/* 메인 폴더의 직접 파일들 - 더 많이 표시 */}
-                            {folder.files.filter(file => !folder.subFolders?.some(sub => sub.files.includes(file))).slice(0, 6).map((file) => (
-                              <div
-                                key={file.id}
-                                className="group p-2 rounded-lg bg-background hover:bg-accent transition-all cursor-pointer border border-border overflow-hidden"
-                                onClick={() => onFileSelect?.(file)}
-                              >
-                                <div className="flex items-center space-x-2 gap-1">
-                                  <span className="text-sm flex-shrink-0">{file.icon}</span>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-foreground truncate">
-                                      {file.name}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      {file.type} • {file.modified}
-                                    </p>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onToggleFavorite(file.id);
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 p-0 hover:bg-accent flex-shrink-0"
-                                  >
-                                    <Star 
-                                      className={`w-3 h-3 ${
-                                        file.isFavorite 
-                                          ? 'text-yellow-500 fill-yellow-500' 
-                                          : 'text-muted-foreground hover:text-yellow-500'
-                                      }`} 
+                              {/* 폴더 트리 */}
+                              <div className="ml-4 space-y-1 mt-1">
+                                {drive.folders
+                                  .filter((folder) => !['root', 'trash'].includes(folder.name))
+                                  .map((folder) => (
+                                    <FolderNode
+                                      key={folder.id}
+                                      folder={folder}
+                                      onFileSelect={onFileSelect}
+                                      onToggleFavorite={onToggleFavorite}
                                     />
-                                  </Button>
-                                </div>
+                                  ))}
                               </div>
-                            ))}
-                          </div>
-                        )}
+                            </div>
+                          ))}
                       </div>
                     ))}
                   </div>
-                </div>
+                )}
               </div>
-            ) : (
-              /* 기존 최근/즐겨찾기 탭 콘텐츠 - 높이 최대화 */
-              <div className="flex-1 overflow-y-auto pr-1">
-                <div className="space-y-2">
-                  {currentFiles?.map((file) => (
-                    <div key={file.id} className="group p-3 rounded-xl bg-background hover:bg-accent transition-all cursor-pointer border border-border card-hover shadow-sm overflow-hidden">
-                      <div className="flex items-center space-x-3 gap-2">
-                        <span className="text-lg flex-shrink-0">{file.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {file.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {file.type} • {file.modified}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleFavorite(file.id);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 p-0 hover:bg-accent flex-shrink-0"
-                        >
-                          <Star 
-                            className={`w-4 h-4 ${
-                              file.isFavorite 
-                                ? 'text-yellow-500 fill-yellow-500' 
-                                : 'text-muted-foreground hover:text-yellow-500'
-                            }`} 
-                          />
-                        </Button>
+            )}
+            {/* 최근 / 즐겨찾기 파일 섹션 - 한 줄 리스트 */}
+            {activeTab !== 'drive' && (
+              <div className="flex flex-col space-y-2">
+                {currentFiles?.map((file) => (
+                  <div
+                    key={file.id}
+                    onClick={() => onFileSelect?.(file)}
+                    className="group flex items-center justify-between bg-background border-2 border-border rounded-xl p-3 cursor-pointer hover:bg-accent transition-all"
+                  >
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                      <span className="text-2xl flex-shrink-0">{file.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-foreground truncate group-hover:text-primary text-sm">
+                          {file.name}
+                        </h4>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {file.type} • {file.modifiedBy} • {file.modified}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite(file.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 p-0 hover:bg-accent flex-shrink-0"
+                    >
+                      <Star
+                        className={`w-4 h-4 ${file.isFavorite
+                          ? 'text-yellow-500 fill-yellow-500'
+                          : 'text-muted-foreground hover:text-yellow-500'
+                          }`}
+                      />
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -500,21 +377,19 @@ export function HomeScreen({
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               {/* API 연결 상태 배지 with 드롭다운 */}
               <div className="relative" ref={apiDropdownRef}>
                 <button
                   onClick={() => hasConnectedApiKeys ? setShowApiDropdown(!showApiDropdown) : onOpenSettings()}
-                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-lg border-2 ${
-                    hasConnectedApiKeys
-                      ? 'bg-blue-500 text-white hover:bg-blue-600 border-blue-600'
-                      : 'bg-muted text-muted-foreground hover:bg-accent border-border'
-                  } card-hover`}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-lg border-2 ${hasConnectedApiKeys
+                    ? 'bg-blue-500 text-white hover:bg-blue-600 border-blue-600'
+                    : 'bg-muted text-muted-foreground hover:bg-accent border-border'
+                    } card-hover`}
                 >
-                  <div className={`w-2 h-2 rounded-full mr-2 ${
-                    hasConnectedApiKeys ? 'bg-white' : 'bg-muted-foreground'
-                  }`}></div>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${hasConnectedApiKeys ? 'bg-white' : 'bg-muted-foreground'
+                    }`}></div>
                   {hasConnectedApiKeys ? 'API 연결됨' : 'API 연결 안됨'}
                   {hasConnectedApiKeys && (
                     <ChevronDown className="w-3 h-3 ml-1" />
@@ -530,15 +405,20 @@ export function HomeScreen({
                         <span className="text-sm font-medium text-foreground">연결된 API 키</span>
                       </div>
                       <div className="space-y-2">
-                        {connectedApiKeys.map((key) => (
-                          <div key={key.id} className="text-xs text-muted-foreground bg-muted rounded-md p-2">
-                            <div className="font-medium">{key.name}</div>
-                            <div className="text-muted-foreground">{key.maskedKey}</div>
-                          </div>
-                        ))}
+                        {apis.length === 0 ? (
+                          <p className='text-xs text-muted-foreground'> 연결된 API 키가 없습니다. </p>
+                        ) : (
+                          apis.map((api) => (
+                            <div key={api.apiIdx} className="text-xs text-muted-foreground bg-muted rounded-md p-2">
+                              <div className="font-medium">{api.apiTitle}</div>
+                              <div className="text-muted-foreground">{api.apiURL ? `${api.apiURL.slice(0, 3)}${'*'.repeat(api.apiURL.length - 3)}` : ''}</div>
+                            </div>
+                          ))
+                        )}
+
                       </div>
                     </div>
-                    
+
                     <div className="p-2">
                       <button
                         onClick={handleDisconnectApi}
@@ -561,7 +441,7 @@ export function HomeScreen({
                   </div>
                 )}
               </div>
-              
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -602,7 +482,7 @@ export function HomeScreen({
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="flex-1 border-0 bg-transparent text-lg placeholder:text-muted-foreground focus:ring-0 h-14"
                   />
-                  <Button 
+                  <Button
                     onClick={onNavigateToChat}
                     className="bg-gradient-primary hover:shadow-lg btn-glow text-white font-semibold px-6 h-12 rounded-xl border border-blue-600"
                   >
@@ -705,11 +585,10 @@ export function HomeScreen({
                 </div>
               </div>
 
-              <div className={`grid gap-4 ${
-                viewMode === 'grid' 
-                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-                  : 'grid-cols-1'
-              }`}>
+              <div className={`grid gap-4 ${viewMode === 'grid'
+                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                : 'grid-cols-1'
+                }`}>
                 {recentFiles.slice(0, 8).map((file) => (
                   <div
                     key={file.id}
@@ -735,12 +614,11 @@ export function HomeScreen({
                         }}
                         className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 p-0 hover:bg-accent flex-shrink-0"
                       >
-                        <Star 
-                          className={`w-4 h-4 ${
-                            file.isFavorite 
-                              ? 'text-yellow-500 fill-yellow-500' 
-                              : 'text-muted-foreground hover:text-yellow-500'
-                          }`} 
+                        <Star
+                          className={`w-4 h-4 ${file.isFavorite
+                            ? 'text-yellow-500 fill-yellow-500'
+                            : 'text-muted-foreground hover:text-yellow-500'
+                            }`}
                         />
                       </Button>
                     </div>
@@ -761,13 +639,85 @@ export function HomeScreen({
         <FileSearchModal
           isOpen={showFileModal}
           onClose={() => setShowFileModal(false)}
-          files={files}
+          files={allFiles}
           onFileSelect={(file) => {
             onFileSelect?.(file);
             setShowFileModal(false);
           }}
           onToggleFavorite={onToggleFavorite}
         />
+      )}
+    </div>
+  );
+}
+// 폴더 재귀 컴포넌트
+function FolderNode({ folder, onFileSelect, onToggleFavorite }: any) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  return (
+    <div className="space-y-1">
+      <div
+        className="flex items-center space-x-2 p-2 hover:bg-accent rounded-lg cursor-pointer group transition-all"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center space-x-1">
+          {isExpanded ? (
+            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+          )}
+          {isExpanded ? (
+            <FolderOpen className="w-4 h-4 text-blue-500" />
+          ) : (
+            <Folder className="w-4 h-4 text-blue-500" />
+          )}
+        </div>
+        <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">
+          {folder.name}
+        </span>
+        <span className="text-xs text-muted-foreground ml-auto">{folder.files.length}</span>
+      </div>
+
+      {isExpanded && (
+        <div className="ml-6 space-y-1">
+          {/* 서브폴더 */}
+          {folder.subFolders?.map((sub: any) => (
+            <FolderNode
+              key={sub.id}
+              folder={sub}
+              onFileSelect={onFileSelect}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+
+          {/* 파일 */}
+          {folder.files?.map((file: any) => (
+            <div
+              key={file.id}
+              className="group p-2 rounded-lg bg-background hover:bg-accent transition-all cursor-pointer border border-border overflow-hidden"
+              onClick={() => onFileSelect?.(file)}
+            >
+              <div className="flex items-center space-x-2 gap-1">
+                <span className="text-sm flex-shrink-0">{file.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{file.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{file.type}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite(file.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 p-0 hover:bg-accent flex-shrink-0"
+                >
+                  <Star className="w-3 h-3 text-muted-foreground" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

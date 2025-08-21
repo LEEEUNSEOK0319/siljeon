@@ -177,7 +177,7 @@ export function SettingsScreen({
   };
 
   const handleEditApiKey = (api: UserApi) => {
-    setEditingApiKey(api);
+    setEditingApiKey(null);
     setShowApiKeyModal(true);
   };
 
@@ -216,29 +216,44 @@ export function SettingsScreen({
 
   const onConnectApiKey = async (apiURL: string) => {
     try {
-      const res = await fetch(`http://localhost:8090/api/dooray/drive?apiToken=${apiURL}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: apiURL })
+      const encodeToken = encodeURIComponent(apiURL);
+      const res = await fetch(`http://localhost:8090/api/dooray/driveConnect?apiURL=${encodeToken}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
 
       if (!res.ok) throw new Error('Dooray API 연결 실패');
 
+      const drives = await res.json();
+      console.log(drives);
+
       setApiKeys(prev =>
         prev.map(api => api.apiURL === apiURL ? { ...api, isConnected: true } : api)
       );
-
-      alert('연결 성공!');
+      alert("연결 성공!");
     } catch (err) {
-      console.error(err);
       alert('연결 실패!');
     }
   };
 
-  const onDisconnectApiKey = (apiURL: string) => {
-    setApiKeys(prev =>
-      prev.map(api => api.apiURL === apiURL ? { ...api, isConnected: false } : api)
-    );
+  const onDisconnectApiKey = async (apiURL: string) => {
+    try {
+      await fetch(`http://localhost:8090/api/dooray/driveDisconnect?apiURL=${apiURL}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      setApiKeys(prev =>
+        prev.map(api => api.apiURL === apiURL ? { ...api, isConnected: false } : api)
+      );
+    } catch (err) {
+      console.log("실패")
+    }
   };
 
   return (

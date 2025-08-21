@@ -43,6 +43,7 @@ export function ApiKeyModal({ isOpen, onClose, onSave, editingKey }: ApiKeyModal
         setValidationStatus('valid');
 
         const newApi = {
+          id : crypto.randomUUID,
           apiTitle: keyName,
           apiURL: apiKey,
           createdDate: result.createdDate,

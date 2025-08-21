@@ -26,6 +26,15 @@ import { useEffect } from 'react';
 
 type Screen = 'login' | 'signup' | 'onboarding' | 'home' | 'chat' | 'settings';
 
+interface ApiKey {
+  apiIdx: number;
+  apiTitle: string;
+  apiURL: string;
+  createdDate?: string;
+  lastUsed?: string;
+  isConnected?: boolean;
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -103,7 +112,7 @@ export default function App() {
             onToggleFavorite={onToggleFavorite}
             onFileSelect={(f: FileItem) => onFileSelect(f)}
             onDisconnectAllApiKeys={onDisconnectAllApiKeys}
-            apiKeys={apiKeys}
+            apiKeys={connectedKeys}
           />
           {/* ✅ 전역 미리보기 드로어 */}
           {selectedFile && (
@@ -187,7 +196,7 @@ export default function App() {
             files={files}
             onToggleFavorite={onToggleFavorite}
             onFileSelect={(f) => onFileSelect(f)}
-            apiKeys={apiKeys}
+            apiKeys={connectedKeys}
           />
           <MobileBottomNav currentScreen="home" onNavigate={(s) => go(s as Screen)} />
 

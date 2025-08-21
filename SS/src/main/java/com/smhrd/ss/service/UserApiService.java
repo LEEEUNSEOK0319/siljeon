@@ -1,14 +1,13 @@
 package com.smhrd.ss.service;
 
 import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.smhrd.ss.entity.UserApiEntity;
+import com.smhrd.ss.entity.UserEntity;
 import com.smhrd.ss.repository.UserApiRepository;
 
 import jakarta.transaction.Transactional;
@@ -33,6 +32,10 @@ public class UserApiService {
     public List<UserApiEntity> getApisByUser(Long userIdx) {
         return userApiRepository.findAllByUserIdx(userIdx);
     }
+    
+    public List<UserApiEntity> getApisIsConnected(Long userIdx, Boolean bool){
+    	return userApiRepository.findAllByUserIdxAndIsConnected(userIdx, bool);
+    }
 
 	@Transactional
 	public boolean delete(String apiURL, Long userIdx) {
@@ -43,4 +46,22 @@ public class UserApiService {
                 })
                 .orElse(false);
 	}
+	
+	@Transactional
+    public void connectApi(String apiURL, Long userIdx) {
+        UserApiEntity api = userApiRepository.findByUserIdxAndApiURL(userIdx, apiURL)
+            .orElseThrow(() -> new RuntimeException("API 키 없음"));
+        api.setIsConnected(true);
+        userApiRepository.save(api);
+    }
+	
+	@Transactional
+    public Boolean disConnectApi(String apiURL, Long userIdx) {
+        UserApiEntity api = userApiRepository.findByUserIdxAndApiURL(userIdx, apiURL)
+            .orElseThrow(() -> new RuntimeException("API 키 없음"));
+        api.setIsConnected(false);
+        userApiRepository.save(api);
+        
+        return true;
+    }
 }
