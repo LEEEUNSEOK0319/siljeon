@@ -5,13 +5,11 @@ export type Screen = 'login' | 'signup' | 'onboarding' | 'home' | 'chat' | 'sett
 export interface FileItem {
   id: string;
   name: string;
-  type: 'pdf' | 'word' | 'excel' | 'powerpoint' | string;
-  size: string;
-  modified: string;    // 예: '방금 전', '2시간 전'
-  modifiedBy: string;  // 예: '김마케팅'
-  path: string;
-  icon?: string;       // 이모지/아이콘 (옵션)
-  isFavorite?: boolean;
+  type: string;
+  modifiedBy: string;
+  modified: string;
+  isFavorite: boolean;
+  icon?: React.ReactNode;
 }
 
 export interface ChatMessage {
@@ -23,11 +21,11 @@ export interface ChatMessage {
 }
 
 export interface ApiKey {
-  id: string;
-  name: string;
-  maskedKey: string;
-  created: string;     // 'YYYY-MM-DD'
-  lastUsed: string;    // 예: '방금 전'
+  apiIdx: number;
+  userIdx: number;
+  apiTitle: string;
+  apiURL: string;
+  createdDate: string;   // ISO string
   isConnected: boolean;
 }
 
@@ -126,8 +124,8 @@ export interface SettingsProps {
 
 export interface MobileHomeScreenProps
   extends BaseScreenProps,
-    FileManagementProps,
-    ApiKeyManagementProps {}
+  FileManagementProps,
+  ApiKeyManagementProps { }
 
 export interface MobileChatInterfaceProps extends FileManagementProps {
   onOpenSettings: () => void;
@@ -137,7 +135,7 @@ export interface MobileChatInterfaceProps extends FileManagementProps {
 
 export interface MobileSettingsScreenProps
   extends SettingsProps,
-    ApiKeyManagementProps {}
+  ApiKeyManagementProps { }
 
 export interface MobileNavProps {
   currentScreen: Screen;
@@ -149,5 +147,5 @@ export interface MobileNavProps {
    레거시 호환 타입 (선택)
    ============================= */
 
-export interface HomeScreenProps extends MobileHomeScreenProps {}
-export interface ChatInterfaceProps extends MobileChatInterfaceProps {}
+export interface HomeScreenProps extends MobileHomeScreenProps { }
+export interface ChatInterfaceProps extends MobileChatInterfaceProps { }

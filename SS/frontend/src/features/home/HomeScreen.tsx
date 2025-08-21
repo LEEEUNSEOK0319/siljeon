@@ -23,6 +23,12 @@ import { FileSearchModal } from '../files/FileSearchModal';
 import { useFileData } from '../files/hooks/useFileData';
 import { useDriveFolders } from '../files/hooks/useDriveFolders';
 
+const maskToken = (token?: string) => {
+  if (!token) return '';
+  if (token.length <= 8) return '*'.repeat(token.length);
+  return `${token.slice(0, 4)}…${token.slice(-4)}`;
+};
+
 interface HomeScreenProps {
   onNavigateToChat: () => void;
   onOpenSettings: () => void;
@@ -30,9 +36,10 @@ interface HomeScreenProps {
   files: FileItem[];
   onToggleFavorite: (fileId: string) => void;
   onFileSelect?: (file: FileItem) => void;
-  onDisconnectAllApiKeys: () => void;
+  onDisconnectAllApiKeys: () => void;  // ✅ 필수
   apiKeys: ApiKey[];
 }
+
 
 export function HomeScreen({
   onNavigateToChat,
@@ -53,7 +60,7 @@ export function HomeScreen({
 
   const { recentFiles, favoriteFiles } = useFileData(files);
   const { driveFolders, toggleFolder } = useDriveFolders(
-    apiKeys.find((k) => k.isConnected)?.key,
+    apiKeys.find((k) => k.isConnected)?.apiURL,
     files
   );
 
@@ -74,6 +81,7 @@ export function HomeScreen({
     onDisconnectAllApiKeys();
     setShowApiDropdown(false);
   };
+
 
   return (
     <div className="h-screen flex bg-background overflow-hidden">
@@ -126,8 +134,8 @@ export function HomeScreen({
                     hasConnectedApiKeys ? setShowApiDropdown(!showApiDropdown) : onOpenSettings()
                   }
                   className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-lg border-2 ${hasConnectedApiKeys
-                      ? 'bg-blue-500 text-white hover:bg-blue-600 border-blue-600'
-                      : 'bg-muted text-muted-foreground hover:bg-accent border-border'
+                    ? 'bg-blue-500 text-white hover:bg-blue-600 border-blue-600'
+                    : 'bg-muted text-muted-foreground hover:bg-accent border-border'
                     } card-hover`}
                 >
                   <div
@@ -147,9 +155,9 @@ export function HomeScreen({
                       </div>
                       <div className="space-y-2">
                         {connectedApiKeys.map((key) => (
-                          <div key={key.id} className="text-xs text-muted-foreground bg-muted rounded-md p-2">
-                            <div className="font-medium">{key.name}</div>
-                            <div className="text-muted-foreground">{key.maskedKey}</div>
+                          <div key={key.apiIdx ?? key.apiURL} className="text-xs text-muted-foreground bg-muted rounded-md p-2">
+                            <div className="font-medium">{key.apiTitle ?? 'Dooray'}</div>
+                            <div className="text-muted-foreground">{maskToken(key.apiURL)}</div>
                           </div>
                         ))}
                       </div>
@@ -304,8 +312,8 @@ export function HomeScreen({
 
               <div
                 className={`grid gap-4 ${viewMode === 'grid'
-                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-                    : 'grid-cols-1'
+                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                  : 'grid-cols-1'
                   }`}
               >
                 {recentFiles.slice(0, 8).map((file) => (

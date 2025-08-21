@@ -25,7 +25,7 @@ import jakarta.servlet.http.HttpSession;
 @RequestMapping("/api/auth")
 public class UserApiController {
 
-	@Autowired
+    @Autowired
     private UserApiService userApiService;
 
     @PostMapping("/addApi")
@@ -50,7 +50,7 @@ public class UserApiController {
 
         return ResponseEntity.ok(Collections.singletonMap("message", "API가 성공적으로 저장되었습니다."));
     }
-    
+
     @GetMapping("/myApis")
     public ResponseEntity<?> getUserApis(HttpSession session) {
         UserEntity sessionUser = (UserEntity) session.getAttribute("user");
@@ -61,25 +61,31 @@ public class UserApiController {
         List<UserApiEntity> apis = userApiService.getApisByUser(sessionUser.getUserIdx());
         return ResponseEntity.ok(apis);
     }
-    
+
     @DeleteMapping("/deleteApi")
     public Map<String, String> deleteApi(@RequestParam String apiURL, HttpSession session) {
         UserEntity user = (UserEntity) session.getAttribute("user");
         if (user == null) {
-        	return Map.of("message", "로그인이 필요합니다.");
+            return Map.of("message", "로그인이 필요합니다.");
         }
         boolean deleted = userApiService.delete(apiURL, user.getUserIdx());
         if (deleted) {
-        	return Map.of("message", "API 키가 삭제되었습니다.");
+            return Map.of("message", "API 키가 삭제되었습니다.");
         } else {
-        	return Map.of("message", "API 키를 찾을 수 없습니다.");
+            return Map.of("message", "API 키를 찾을 수 없습니다.");
         }
     }
-    
-    @PostMapping("/coonectApi")
-    public ResponseEntity<?> connectApi(@RequestParam String apiURL, HttpSession session) {
-    	UserEntity user = (UserEntity) session.getAttribute("user");
-    	userApiService.connectApi(apiURL, user.getUserIdx());
-    	return ResponseEntity.ok("연결 완료");
+
+    @PostMapping("/connectApi")
+    public ResponseEntity<?> connectApi(@RequestParam String apiURL,
+            @RequestParam(required = false, defaultValue = "Dooray") String apiTitle,
+            HttpSession session) {
+        UserEntity user = (UserEntity) session.getAttribute("user");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
+        }
+        userApiService.connectApi(apiURL, user.getUserIdx(), apiTitle);
+        return ResponseEntity.ok("연결 완료");
     }
+
 }

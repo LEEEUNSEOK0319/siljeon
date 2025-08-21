@@ -1,15 +1,59 @@
-import { useState, useCallback, useMemo } from 'react';
-import type { FileItem, FilesHookReturn } from '../../types';
-import { initialFiles } from './mockData';
+import { useState, useCallback, useEffect } from 'react';
+import type { FileItem } from '../../types';
 
+type DriveType = {
+  id: string;
+  name: string;
+  folders: FolderType[];
+};
+type FolderType = {
+  id: string;
+  name: string;
+  subFolders?: FolderType[];
+  files?: FileItem[];
+};
+type ApiDrive = {
+  apiTitle: string;
+  apiURL: string;
+  drives: DriveType[];
+};
 
-export function useFiles(): FilesHookReturn {
-  const [files, setFiles] = useState<FileItem[]>(initialFiles);
+// 폴더 트리 평탄화
+const flattenFiles = (apis: ApiDrive[]): FileItem[] => {
+  const result: FileItem[] = [];
+  const walk = (f: FolderType) => {
+    if (f.files) result.push(...f.files);
+    f.subFolders?.forEach(walk);
+  };
+  apis.forEach(api => {
+    api.drives.forEach(d => d.folders.forEach(walk));
+  });
+  return result;
+};
+
+export function useFiles() {
+  const [files, setFiles] = useState<FileItem[]>([]);
   const [showPreviewDrawer, setShowPreviewDrawer] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
-  const handleFileSelect = useCallback((file: FileItem) => {
-    setSelectedFile(file);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('http://localhost:8090/api/dooray/driveLoading', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error('드라이브 로딩 실패');
+        const data = await res.json(); // ApiDrive[]
+        setFiles(flattenFiles(data));
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, []);
+
+  const onFileSelect = useCallback((f: FileItem) => {
+    setSelectedFile(f);
     setShowPreviewDrawer(true);
   }, []);
 
@@ -18,37 +62,16 @@ export function useFiles(): FilesHookReturn {
     setSelectedFile(null);
   }, []);
 
-  const handleToggleFavorite = useCallback((fileId: string) => {
-    setFiles(prevFiles => 
-      prevFiles.map(file => 
-        file.id === fileId 
-          ? { ...file, isFavorite: !file.isFavorite }
-          : file
-      )
-    );
+  const onToggleFavorite = useCallback((fileId: string) => {
+    setFiles(prev => prev.map(x => x.id === fileId ? { ...x, isFavorite: !x.isFavorite } : x));
   }, []);
-
-  // 파일 통계를 메모이제이션
-  const fileStats = useMemo(() => {
-    const totalFiles = files.length;
-    const favoriteFiles = files.filter(file => file.isFavorite);
-    const recentFiles = files.slice(0, 5);
-    
-    return {
-      totalFiles,
-      favoriteFiles,
-      recentFiles,
-      favoriteCount: favoriteFiles.length
-    };
-  }, [files]);
 
   return {
     files,
     showPreviewDrawer,
     selectedFile,
-    onFileSelect: handleFileSelect,
-    onToggleFavorite: handleToggleFavorite,
+    onFileSelect,
+    onToggleFavorite,
     handleClosePreview,
-    ...fileStats
   };
 }

@@ -25,43 +25,52 @@ public class UserApiService {
         api.setApiTitle(title);
         api.setApiURL(url);
         api.setCreatedDate(now);
-
+        api.setIsConnected(false); // ✅ 기본값 설정
         return userApiRepository.save(api);
     }
-    
+
     public List<UserApiEntity> getApisByUser(Long userIdx) {
         return userApiRepository.findAllByUserIdx(userIdx);
     }
-    
-    public List<UserApiEntity> getApisIsConnected(Long userIdx, Boolean bool){
-    	return userApiRepository.findAllByUserIdxAndIsConnected(userIdx, bool);
+
+    public List<UserApiEntity> getApisIsConnected(Long userIdx, Boolean bool) {
+        return userApiRepository.findAllByUserIdxAndIsConnected(userIdx, bool);
     }
 
-	@Transactional
-	public boolean delete(String apiURL, Long userIdx) {
-		return userApiRepository.findByUserIdxAndApiURL(userIdx, apiURL)
+    @Transactional
+    public boolean delete(String apiURL, Long userIdx) {
+        return userApiRepository.findByUserIdxAndApiURL(userIdx, apiURL)
                 .map(api -> {
                     userApiRepository.delete(api);
                     return true;
                 })
                 .orElse(false);
-	}
-	
-	@Transactional
-    public void connectApi(String apiURL, Long userIdx) {
+    }
+
+
+    @Transactional
+    public void connectApi(String apiURL, Long userIdx, String apiTitle) {
         UserApiEntity api = userApiRepository.findByUserIdxAndApiURL(userIdx, apiURL)
-            .orElseThrow(() -> new RuntimeException("API 키 없음"));
+                .orElseGet(() -> {
+                    UserApiEntity n = new UserApiEntity();
+                    n.setUserIdx(userIdx);
+                    n.setApiTitle(apiTitle);
+                    n.setApiURL(apiURL);
+                    n.setCreatedDate(new Timestamp(System.currentTimeMillis()));
+                    n.setIsConnected(false);
+                    return userApiRepository.save(n);
+                });
         api.setIsConnected(true);
         userApiRepository.save(api);
     }
-	
-	@Transactional
+
+    @Transactional
     public Boolean disConnectApi(String apiURL, Long userIdx) {
         UserApiEntity api = userApiRepository.findByUserIdxAndApiURL(userIdx, apiURL)
-            .orElseThrow(() -> new RuntimeException("API 키 없음"));
+                .orElseThrow(() -> new RuntimeException("API 키 없음"));
         api.setIsConnected(false);
         userApiRepository.save(api);
-        
+
         return true;
     }
 }
